@@ -195,7 +195,74 @@ class vehiclelist
         }
     }
 };
-
+class emergencyvehicle
+{
+    public:
+    string vehicleid;
+    string road1;
+    string road2;
+    string priority;
+    emergencyvehicle *next;
+    emergencyvehicle(string id,string road1,string road2,string priority)
+    {
+        this->vehicleid=id;
+        this->road1=road1;
+        this->road2=road2;
+        this->priority=priority;
+        this->next=NULL;
+    }
+};
+class emergencyvehiclefromcsv
+{
+    public:
+    emergencyvehicle *head;
+    emergencyvehiclefromcsv()
+    {
+        this->head=NULL;
+    }
+     void addemergencyvehicle(string id,string road1,string road2,string priority)
+    {
+        emergencyvehicle *NV=new emergencyvehicle(id,road1,road2,priority);
+        if(head==NULL)
+        {
+            head=NV;
+        }
+        else{
+            emergencyvehicle *curr=head;
+            while(curr->next!=NULL)
+            {
+                curr=curr->next;
+            }
+            curr->next=NV;
+        }
+    }
+    void loademergencyvehicleformcsv(string filename)
+    {
+        ifstream file(filename);
+        string line;
+        getline(file,line);
+        while(getline(file,line))
+        {
+            stringstream ss(line);
+            string vehicleid,road1,road2,prioritylevel;
+            getline(ss,vehicleid,',');
+             getline(ss,road1,',');
+              getline(ss,road2,',');
+               getline(ss,prioritylevel,',');
+               addemergencyvehicle(vehicleid,road1,road2,prioritylevel);
+        }
+        file.close();
+    }
+    void displayemergencyvehicle()
+    {
+        emergencyvehicle *curr=head;
+        while(curr!=NULL)
+        {
+             cout<<"Vehicle ID : "<<curr->vehicleid<<" start : "<<curr->road1<<" End : "<<curr->road2<<" PriorityLevel : "<<curr->priority<<endl;
+             curr=curr->next;
+        }
+    }
+};
 int main() {
     string filename = "road_network.csv";
     roadmap r;
@@ -205,5 +272,9 @@ int main() {
     string filenamevehicle="vehicles.csv";
     v.loadvehiclefromcsv(filenamevehicle);
     v.displayvehicle();
+    cout<<endl;
+    emergencyvehiclefromcsv em;
+    em.loademergencyvehicleformcsv("emergency_vehicles.csv");
+    em.displayemergencyvehicle();
     return 0;
 }
