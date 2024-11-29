@@ -134,10 +134,76 @@ public:
     }
 };
 
+class vehicle
+{
+    public:
+    string vehicleid;
+    string road1;
+    string road2;
+    vehicle *next;
+    vehicle(string id,string road1,string road2)
+    {
+        this->vehicleid=id;
+        this->road1=road1;
+        this->road2=road2;
+        this->next=NULL;
+    }
+};
+class vehiclelist
+{
+    public:
+    vehicle *head=NULL;
+    void addvehicle(string id,string road1,string road2)
+    {
+        vehicle *NV=new vehicle(id,road1,road2);
+        if(head==NULL)
+        {
+            head=NV;
+        }
+        else{
+            vehicle *curr=head;
+            while(curr->next!=NULL)
+            {
+                curr=curr->next;
+            }
+            curr->next=NV;
+        }
+    }
+    void loadvehiclefromcsv(string filename)
+    {
+        ifstream file(filename);
+        string line;
+        getline(file,line);
+        while(getline(file,line))
+        {
+            stringstream ss(line);
+            string vehicleid,road1,road2;
+            getline(ss,vehicleid,',');
+            getline(ss,road1,',');
+            getline(ss,road2,',');
+            addvehicle(vehicleid,road1,road2);
+        }
+        file.close();
+    }
+    void displayvehicle()
+    {
+        vehicle *curr=head;
+        while(curr!=NULL)
+        {
+            cout<<"Vehicle ID : "<<curr->vehicleid<<" start : "<<curr->road1<<" End : "<<curr->road2<<endl;
+            curr=curr->next;
+        }
+    }
+};
+
 int main() {
     string filename = "road_network.csv";
     roadmap r;
     r.loadgraphfromcsv(filename);
     r.displayroadnetwork();
+    vehiclelist v;
+    string filenamevehicle="vehicles.csv";
+    v.loadvehiclefromcsv(filenamevehicle);
+    v.displayvehicle();
     return 0;
 }
