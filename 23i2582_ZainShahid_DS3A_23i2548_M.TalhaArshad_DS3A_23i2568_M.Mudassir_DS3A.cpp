@@ -104,6 +104,34 @@ public:
             curr = curr->next;
         }
     }
+    int gettraveltime(string road1,string road2)
+    {
+        node *road1node=addnode(road1);
+        edge *curr=road1node->head;
+        while(curr!=NULL)
+        {
+            if(curr->u==road2)
+            {
+                return curr->weight_cost;
+            }
+            curr=curr->next;
+        }
+        return -1;
+    }
+    void updatetrafficweights(string road1,string road2,int newcost)
+    {
+        node *road1node=addnode(road1);
+        edge *curr=road1node->head;
+        while(curr!=NULL)
+        {
+            if(curr->u==road2)
+            {
+                curr->weight_cost=newcost;
+                return ;
+            }
+            curr=curr->next;
+        }
+    }
 };
 
 int main() {
