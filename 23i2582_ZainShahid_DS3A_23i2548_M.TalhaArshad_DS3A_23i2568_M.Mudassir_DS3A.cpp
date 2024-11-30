@@ -226,6 +226,7 @@ class emergencyvehiclefromcsv
         if(head==NULL)
         {
             head=NV;
+            return;
         }
         else{
             emergencyvehicle *curr=head;
@@ -263,6 +264,73 @@ class emergencyvehiclefromcsv
         }
     }
 };
+class traficsignal
+{
+    public:
+    string road;
+    int greentime;
+    traficsignal *next;
+    traficsignal(string road,int greentime)
+    {
+        this->road=road;
+        this->greentime=greentime;
+        this->next=NULL;
+    }
+};
+class trafficsignalgreenlist
+{
+    public:
+    traficsignal *head;
+    trafficsignalgreenlist()
+    {
+        this->head=NULL;
+    }
+    void addsignal(string road,int greentime)
+    {
+        traficsignal *tf=new traficsignal(road,greentime);
+        if(head==NULL)
+        {
+            head=tf;
+            return;
+        }
+        else{
+            traficsignal *curr=head;
+            while(curr->next!=NULL)
+            {
+                curr=curr->next;
+            }
+            curr->next=tf;
+            return ;
+        }
+    }
+    void readtrafficgreentimefromcsv(string filename)
+    {
+        ifstream file(filename);
+        string line;
+        getline(file,line);
+        while(getline(file,line))
+        {
+            stringstream ss(line);
+            string road;
+            string greentimeinstring;
+            getline(ss,road,',');
+            getline(ss,greentimeinstring,',');
+            int greentime=stoi(greentimeinstring);
+            addsignal(road,greentime);
+        }
+        file.close();
+    }
+    void displaytrafficsignalstatus()
+    {
+        traficsignal *temp=head;
+        while(temp!=NULL)
+        {
+            cout<<"Intersection "<<temp->road<<" Green Time: "<<temp->greentime<<endl;
+            temp=temp->next;
+        }
+
+    }
+};
 int main() {
     string filename = "road_network.csv";
     roadmap r;
@@ -276,5 +344,8 @@ int main() {
     emergencyvehiclefromcsv em;
     em.loademergencyvehicleformcsv("emergency_vehicles.csv");
     em.displayemergencyvehicle();
+    trafficsignalgreenlist tf;
+    tf.readtrafficgreentimefromcsv("traffic_signals.csv");
+    tf.displaytrafficsignalstatus();
     return 0;
 }
