@@ -136,6 +136,7 @@ public:
 <<<<<<< Updated upstream
 };
 
+<<<<<<< Updated upstream
 =======
     ~roadmap() {
     while (head_n) {
@@ -153,6 +154,8 @@ public:
 }
 };
 
+=======
+>>>>>>> Stashed changes
 class minheap {
 public:
     struct nodeminheap {
@@ -226,6 +229,9 @@ void updateAndRecalculate(string road1, string road2, int newWeight, roadmap &gr
     graph.updatetrafficweights(road1, road2, newWeight);
     dijkstra(source, graph, destination);
 }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 class vehicle
 {
@@ -243,6 +249,10 @@ class vehicle
     }
 };
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 =======
 
 >>>>>>> Stashed changes
@@ -251,6 +261,10 @@ class vehiclelist
     public:
     vehicle *head=NULL;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+  
+>>>>>>> Stashed changes
 =======
   
 >>>>>>> Stashed changes
@@ -270,6 +284,10 @@ class vehiclelist
             curr->next=NV;
         }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+       
+>>>>>>> Stashed changes
 =======
        
 >>>>>>> Stashed changes
@@ -301,6 +319,7 @@ class vehiclelist
     }
 <<<<<<< Updated upstream
 };
+<<<<<<< Updated upstream
 =======
     ~vehiclelist() {
     while (head) {
@@ -310,6 +329,9 @@ class vehiclelist
     }
 }
 };
+
+>>>>>>> Stashed changes
+=======
 
 >>>>>>> Stashed changes
 class emergencyvehicle
@@ -449,6 +471,7 @@ class trafficsignalgreenlist
     }
 <<<<<<< Updated upstream
 };
+<<<<<<< Updated upstream
 int main() {
     string filename = "road_network.csv";
     roadmap r;
@@ -475,6 +498,8 @@ int main() {
 }
 };
 
+=======
+>>>>>>> Stashed changes
 class TrafficSignalManager {
 private:
     trafficsignalgreenlist signalList;
@@ -543,6 +568,7 @@ int countVehiclesOnRoad(string road1, string road2, vehiclelist& vehicles) {
         curr = curr->next;
     }
     return count;
+<<<<<<< Updated upstream
 }
 public:
     TrafficSignalManager(roadmap& network) : roadNetwork(network) {}
@@ -874,3 +900,326 @@ int main() {
 }
 
 
+=======
+}
+public:
+    TrafficSignalManager(roadmap& network) : roadNetwork(network) {}
+
+    // Emergency vehicle override system
+    void handleEmergencyVehicles(emergencyvehiclefromcsv& emergencyVehicles) {
+        emergencyvehicle* curr = emergencyVehicles.head;
+        while (curr != NULL) {
+            if (curr->priority == "High") {
+                // Override traffic signals for high-priority emergency vehicles
+                roadNetwork.updatetrafficweights(curr->road1, curr->road2, 1);
+                cout << "Emergency Override: Clearing path for vehicle " 
+                     << curr->vehicleid << " from " << curr->road1 
+                     << " to " << curr->road2 << endl;
+            }
+            curr = curr->next;
+        }
+    }
+
+    // Dynamic traffic signal management
+  void optimizeTrafficSignals(vehiclelist& vehicles) {
+    cout << "\n--- Traffic Signal Optimization Report ---" << endl;
+    RoadPriorityQueue priorityRoads;
+    traficsignal* signal = signalList.head;
+
+    // Detailed road and vehicle analysis
+    while (signal != NULL) {
+        node* currentNode = roadNetwork.addnode(signal->road);
+        edge* connectedRoad = currentNode->head;
+        int totalVehiclesAtIntersection = 0;
+
+        cout << "Analyzing Intersection: " << signal->road 
+             << " (Current Green Time: " << signal->greentime << " seconds)" << endl;
+
+        while (connectedRoad != NULL) {
+            // Count vehicles for the current connected road
+            int vehicleCount = countVehiclesOnRoad(signal->road, connectedRoad->u, vehicles);
+            totalVehiclesAtIntersection += vehicleCount;
+
+            // Display details for each connected road
+            cout << "  Connected Road: " << signal->road << " -> " << connectedRoad->u 
+                 << ", Vehicle Count: " << vehicleCount 
+                 << ", Travel Time: " << connectedRoad->weight_cost << " seconds" << endl;
+
+            // Insert data into the priority queue for adjustment
+            priorityRoads.insert(
+                connectedRoad->u,
+                vehicleCount,
+                signal->greentime
+            );
+
+            connectedRoad = connectedRoad->next;
+        }
+
+        // Display total vehicle count for the intersection
+        cout << "Total Vehicles at Intersection " << signal->road 
+             << ": " << totalVehiclesAtIntersection << endl;
+
+        signal = signal->next;
+    }
+
+    cout << "\n--- Traffic Signal Adjustments ---" << endl;
+    // Adjust green times based on vehicle density
+    while (!priorityRoads.isEmpty()) {
+        RoadPriorityQueue::RoadPriority mostCongested = priorityRoads.extractMax();
+
+        // Dynamically adjust green time based on vehicle density
+        int adjustedGreenTime = mostCongested.currentGreenTime + 
+                                (mostCongested.vehicleCount / 10); // Adjustment factor
+
+        // Cap green time between minimum (15s) and maximum (60s)
+        adjustedGreenTime = min(max(adjustedGreenTime, 15), 60);
+
+        // Update traffic signal green time
+        traficsignal* curr = signalList.head;
+        while (curr != NULL) {
+            if (curr->road == mostCongested.road) {
+                int originalTime = curr->greentime;
+                curr->greentime = adjustedGreenTime;
+
+                // Display updated green time
+                cout << "Intersection " << curr->road 
+                     << ": Green Time Adjusted" << endl
+                     << "  Original Time: " << originalTime << " seconds" << endl
+                     << "  New Time: " << curr->greentime << " seconds" << endl;
+                break;
+            }
+            curr = curr->next;
+        }
+    }
+}
+
+    // Load existing traffic signals
+    void loadTrafficSignals(string filename) {
+        signalList.readtrafficgreentimefromcsv(filename);
+    }
+
+    // Display current traffic signal status
+    void displayTrafficSignals() {
+        signalList.displaytrafficsignalstatus();
+    }
+};
+
+
+// Existing classes from previous implementation remain the same...
+
+class CongestionMonitor {
+private:
+    // Custom hash table-like structure for vehicle counts
+    struct RoadSegment {
+        string road1;
+        string road2;
+        int vehicleCount;
+        int congestionLevel;
+        RoadSegment* next;
+
+        RoadSegment(string start, string end) : 
+            road1(start), road2(end), vehicleCount(0), 
+            congestionLevel(0), next(NULL) {}
+    };
+
+    RoadSegment* head;
+    roadmap& roadNetwork;
+
+    // Hash function to distribute road segments
+    int hash(string road1, string road2) {
+        int hash = 0;
+        for (char c : road1) hash += c;
+        for (char c : road2) hash += c;
+        return hash % 100;
+    }
+
+    // Find or create road segment entry
+    RoadSegment* findOrCreateRoadSegment(string road1, string road2) {
+        RoadSegment* curr = head;
+        while (curr != NULL) {
+            if ((curr->road1 == road1 && curr->road2 == road2) ||
+                (curr->road1 == road2 && curr->road2 == road1)) {
+                return curr;
+            }
+            curr = curr->next;
+        }
+
+        // Create new road segment if not found
+        RoadSegment* newSegment = new RoadSegment(road1, road2);
+        newSegment->next = head;
+        head = newSegment;
+        return newSegment;
+    }
+
+public:
+    CongestionMonitor(roadmap& network) : roadNetwork(network), head(NULL) {}
+
+    // Update vehicle count for a road segment
+   void updateVehicleCount(vehiclelist& vehicles) {
+    // Reset counts first
+    RoadSegment* curr = head;
+    while (curr != NULL) {
+        curr->vehicleCount = 0;
+        curr->congestionLevel = 0;
+        curr = curr->next;
+    }
+
+    // Count vehicles on each road segment
+    vehicle* vehiclePtr = vehicles.head;
+    while (vehiclePtr != NULL) {
+        RoadSegment* segment = findOrCreateRoadSegment(
+            vehiclePtr->road1, 
+            vehiclePtr->road2
+        );
+        segment->vehicleCount++;
+        
+        // Simple congestion level calculation
+        int travelTime = roadNetwork.gettraveltime(
+            vehiclePtr->road1, 
+            vehiclePtr->road2
+        );
+        
+        // Congestion levels: 
+        // 0-2 vehicles: Low
+        // 3-5 vehicles: Medium
+        // 6+ vehicles: High
+        if (segment->vehicleCount <= 2) 
+            segment->congestionLevel = 1; // Low
+        else if (segment->vehicleCount <= 5) 
+            segment->congestionLevel = 2; // Medium
+        else 
+            segment->congestionLevel = 3; // High
+
+        vehiclePtr = vehiclePtr->next;
+    }
+}
+
+    // Reroute traffic from congested roads
+    void rerouteCongestedRoads(vehiclelist& vehicles) {
+        cout << "\n--- Congestion Rerouting Report ---" << endl;
+        
+        RoadSegment* curr = head;
+        while (curr != NULL) {
+            if (curr->congestionLevel >= 3) {
+                cout << "High Congestion Detected: " 
+                     << curr->road1 << " - " << curr->road2 
+                     << " (Vehicles: " << curr->vehicleCount << ")" << endl;
+
+                // Find alternative routes
+                string altRoute1 = findAlternativeRoute(
+                    curr->road1, 
+                    curr->road2
+                );
+
+                if (!altRoute1.empty()) {
+                    // Update vehicle routes
+                    vehicle* vehiclePtr = vehicles.head;
+                    while (vehiclePtr != NULL) {
+                        if ((vehiclePtr->road1 == curr->road1 && 
+                             vehiclePtr->road2 == curr->road2) ||
+                            (vehiclePtr->road1 == curr->road2 && 
+                             vehiclePtr->road2 == curr->road1)) {
+                            
+                            // Reroute logic
+                            vehiclePtr->road1 = curr->road1;
+                            vehiclePtr->road2 = altRoute1;
+                            
+                            cout << "  Rerouted Vehicle " 
+                                 << vehiclePtr->vehicleid 
+                                 << " via " << altRoute1 << endl;
+                        }
+                        vehiclePtr = vehiclePtr->next;
+                    }
+                }
+            }
+            curr = curr->next;
+        }
+    }
+
+    // Find alternative route using simple path exploration
+    string findAlternativeRoute(string start, string end) {
+        node* startNode = roadNetwork.addnode(start);
+        edge* connectedRoads = startNode->head;
+
+        while (connectedRoads != NULL) {
+            // Prefer roads with lower travel times
+            if (connectedRoads->u != end) {
+                return connectedRoads->u;
+            }
+            connectedRoads = connectedRoads->next;
+        }
+        return ""; // No alternative found
+    }
+
+    // Display congestion report
+void displayCongestionReport() {
+    cout << "---------- Congestion Status ------" << endl;
+    RoadSegment* curr = head;
+    while (curr != nullptr) {
+        cout << "-------------------------------------------------Segment: " << curr->road1 << " - " << curr->road2 
+             << ", Vehicles: " << curr->vehicleCount 
+             << ", Congestion Level: " << curr->congestionLevel << endl;
+        curr = curr->next;
+    }
+}
+
+
+    // Destructor to free memory
+    ~CongestionMonitor() {
+        while (head) {
+            RoadSegment* temp = head;
+            head = head->next;
+            delete temp;
+        }
+    }
+};
+
+int main() {
+    roadmap roadNetwork;
+    vehiclelist vehicleList;
+    emergencyvehiclefromcsv emergencyVehicles;
+    trafficsignalgreenlist signalList;
+   
+    
+    // Load data
+    roadNetwork.loadgraphfromcsv("road_network.csv");
+    vehicleList.loadvehiclefromcsv("vehicles.csv");
+    emergencyVehicles.loademergencyvehicleformcsv("emergency_vehicles.csv");
+  signalList.readtrafficgreentimefromcsv("traffic_signals.csv");
+    cout << "Road Network:\n";
+    roadNetwork.displayroadnetwork();
+    cout << "\nVehicles:\n";
+    vehicleList.displayvehicle();
+    cout << "\nTraffic Signal Status:\n";
+    signalList.displaytrafficsignalstatus();
+    dijkstra("A",roadNetwork,"D");
+    // Create traffic signal manager
+    TrafficSignalManager trafficManager(roadNetwork);
+    trafficManager.loadTrafficSignals("traffic_signals.csv");
+
+    // Demonstrate traffic signal optimization
+    cout << "Initial Traffic Signals:" << endl;
+    trafficManager.displayTrafficSignals();
+
+    // Optimize traffic signals based on vehicle density
+    trafficManager.optimizeTrafficSignals(vehicleList);
+
+    // Handle emergency vehicles
+    trafficManager.handleEmergencyVehicles(emergencyVehicles);
+
+    cout << "\nOptimized Traffic Signals:" << endl;
+    trafficManager.displayTrafficSignals();
+     // Create Congestion Monitor
+    CongestionMonitor congestionMonitor(roadNetwork);
+    congestionMonitor.updateVehicleCount(vehicleList);
+    congestionMonitor.displayCongestionReport();
+    
+    congestionMonitor.rerouteCongestedRoads(vehicleList);
+
+    // Display updated vehicle list after rerouting
+    cout << "\nUpdated Vehicles after Rerouting:" << endl;
+    vehicleList.displayvehicle();
+
+    return 0;
+}
+>>>>>>> Stashed changes
