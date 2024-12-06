@@ -16,6 +16,14 @@ public:
         this->next = NULL;
     }
 };
+struct roadStatus {
+    string road1;
+    string road2;
+    string status;   // Status of the road: Blocked, Under Repair, Clear
+    roadStatus *next;
+
+    roadStatus(string r1, string r2, string s) : road1(r1), road2(r2), status(s), next(NULL) {}
+};
 
 class node {
 public:
@@ -46,7 +54,13 @@ struct PathNode {
 };
 class roadmap {
 public:
-    node *head_n = NULL;
+    node *head_n;
+    roadStatus *statusHead;
+    roadmap()
+    {
+        this->head_n=NULL;
+        this->statusHead=NULL;
+    }
 node* addnode(string name) {
     node *curr = head_n;
     if (curr == NULL) {
@@ -240,8 +254,78 @@ node* addnode(string name) {
             curr = curr->next;
         }
     }
+void addRoadStatus(string road1, string road2, string status) {
+        roadStatus *newStatus = new roadStatus(road1, road2, status);
+        if (statusHead == NULL) {
+            statusHead = newStatus;
+        } else {
+            roadStatus *curr = statusHead;
+            while (curr->next != NULL) {
+                curr = curr->next;
+            }
+            curr->next = newStatus;
+        }
+    }
 
+     void blockRoad(string road1, string road2) {
+        updateTrafficWeights(road1, road2, INT_MAX);  // Block the road between road1 and road2
+        string reasontoblockroad="";
+        cout<<"---Enter the reason why you are blocking road---"<<endl;
+        cin>>reasontoblockroad;
+        addRoadStatus(road1,road2,reasontoblockroad);
+        cout << "Roads between " << road1 << " and " << road2 << " have been blocked." << endl;
+    }
 
+    void applyRoadClosures(string filename) {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "Could not open file: " << filename << endl;
+            return;
+        }
+        string line;
+        getline(file, line); // Skip header line
+        while (getline(file, line)) {
+            stringstream ss(line);
+            string road1, road2, status;
+            getline(ss, road1, ',');
+            getline(ss, road2, ',');
+            getline(ss, status, ',');
+
+            addRoadStatus(road1, road2, status); // Store the closure status
+
+            if (status == "Blocked") {
+                updateTrafficWeights(road1, road2, INT_MAX); // Block the road
+            } else if (status == "Under Repair") {
+                updateTrafficWeights(road1, road2, 9999); // Delay the road
+            }
+        }
+        file.close();
+    }
+ void updateTrafficWeights(string road1, string road2, int newCost) {
+        node *road1Node = addnode(road1);
+        edge *curr = road1Node->head;
+        while (curr != NULL) {
+            if (curr->u == road2) {
+                curr->weight_cost = newCost;
+                return;
+            }
+            curr = curr->next;
+        }
+    }
+
+    
+
+    // Display the road statuses
+    void displayRoadStatuses() {
+        roadStatus *curr = statusHead;
+        cout << "Road Closures:\n";
+        while (curr != NULL) {
+            cout << curr->road1 << " -> " << curr->road2 << ": " << curr->status << endl;
+            curr = curr->next;
+        }
+    }
+
+    
 };
 
 class minheap {
@@ -969,6 +1053,12 @@ int main() {
 //     cout << "\nUpdated Vehicles after Rerouting:" << endl;
 //     vehicleList.displayvehicle();
 //      roadNetwork.aStarSearch("A", "Z");
-
+  roadNetwork.applyRoadClosures("road_closures.csv");
+  roadNetwork.displayRoadStatuses();
+  roadNetwork.displayroadnetwork();
+  dijkstra("B",roadNetwork,"F");
+  roadNetwork.aStarSearch("B","F");
+  roadNetwork.blockRoad("A","B");
+  roadNetwork.displayRoadStatuses();
     return 0;
 }
