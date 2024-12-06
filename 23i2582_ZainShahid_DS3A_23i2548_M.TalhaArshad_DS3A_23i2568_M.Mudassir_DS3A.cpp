@@ -29,11 +29,25 @@ public:
         next = NULL;
     }
 };
+struct PathNode {
+    string road;
+    PathNode *prev;
+    int g_cost; // Cost from start to this node
+    int f_cost; // Estimated total cost (g + heuristic)
+    PathNode *next;
 
+    PathNode(string r, int g, int f, PathNode *p = NULL) {
+        road = r;
+        g_cost = g;
+        f_cost = f;
+        prev = p;
+        next = NULL;
+    }
+};
 class roadmap {
 public:
     node *head_n = NULL;
-   node* addnode(string name) {
+node* addnode(string name) {
     node *curr = head_n;
     if (curr == NULL) {
         head_n = new node(name);
@@ -41,16 +55,15 @@ public:
     }
     while (curr->next != NULL) {
         if (curr->name == name) {
-            return curr; 
+            return curr;
         }
         curr = curr->next;
     }
-    if (curr->name == name) {
-        return curr;
-    }
-    curr->next = new node(name);
-    return curr->next;
+    node *newNode = new node(name);
+    curr->next = newNode;  // Add at the end
+    return newNode;
 }
+
 
 
     void addedge(string road1, string road2, int weight_cost) {
@@ -65,7 +78,9 @@ public:
         curr->next = new edge(road2, weight_cost);
     }
 }
-
+   int heuristic(string, string) {
+        return 0; // Placeholder heuristic function (Dijkstra-like)
+    }
 
     void loadgraphfromcsv(string filename) {
         ifstream file(filename);
@@ -119,20 +134,114 @@ public:
         }
         return -1;
     }
-    void updatetrafficweights(string road1,string road2,int newcost)
-    {
-        node *road1node=addnode(road1);
-        edge *curr=road1node->head;
-        while(curr!=NULL)
-        {
-            if(curr->u==road2)
-            {
-                curr->weight_cost=newcost;
-                return ;
+   
+     PathNode* addPriorityNode(PathNode *head, string road, int g, int f, PathNode *prev) {
+        PathNode *newNode = new PathNode(road, g, f, prev);
+        if (head == NULL || head->f_cost > f) {
+            newNode->next = head;
+            return newNode;
+        }
+        PathNode *curr = head;
+        while (curr->next != NULL && curr->next->f_cost <= f) {
+            curr = curr->next;
+        }
+        newNode->next = curr->next;
+        curr->next = newNode;
+        return head;
+    }
+
+    bool contains(PathNode *head, string road) {
+        PathNode *curr = head;
+        while (curr != NULL) {
+            if (curr->road == road) return true;
+            curr = curr->next;
+        }
+        return false;
+    }
+
+    PathNode* findNode(PathNode *head, string road) {
+        PathNode *curr = head;
+        while (curr != NULL) {
+            if (curr->road == road) return curr;
+            curr = curr->next;
+        }
+        return NULL;
+    }
+
+    void aStarSearch(string start, string goal) {
+        PathNode *openList = NULL;
+        openList = addPriorityNode(openList, start, 0, heuristic(start, goal), NULL);
+
+        PathNode *closedList = NULL;
+
+        while (openList != NULL) {
+            PathNode *current = openList;
+            openList = openList->next;
+
+            if (current->road == goal) {
+                // Reconstruct path
+                cout << "Path: ";
+                while (current != NULL) {
+                    cout << current->road;
+                    if (current->prev != NULL) cout << " <- ";
+                    current = current->prev;
+                }
+                cout << endl;
+                return;
             }
-            curr=curr->next;
+
+            node *roadNode = addnode(current->road);
+            edge *edgePtr = roadNode->head;
+            while (edgePtr != NULL) {
+                int tentative_g_cost = current->g_cost + edgePtr->weight_cost;
+                int f_cost = tentative_g_cost + heuristic(edgePtr->u, goal);
+
+                PathNode *existingNode = findNode(openList, edgePtr->u);
+                if (existingNode == NULL || tentative_g_cost < existingNode->g_cost) {
+                    if (existingNode == NULL) {
+                        openList = addPriorityNode(openList, edgePtr->u, tentative_g_cost, f_cost, current);
+                    } else {
+                        existingNode->g_cost = tentative_g_cost;
+                        existingNode->f_cost = f_cost;
+                        existingNode->prev = current;
+                    }
+                }
+                edgePtr = edgePtr->next;
+            }
+            current->next = closedList;
+            closedList = current;
+        }
+
+        cout << "No path found from " << start << " to " << goal << endl;
+    }
+    ~roadmap() {
+    node *curr = head_n;
+    while (curr != NULL) {
+        edge *e = curr->head;
+        while (e != NULL) {
+            edge *temp = e;
+            e = e->next;
+            delete temp;
+        }
+        node *temp = curr;
+        curr = curr->next;
+        delete temp;
+    }
+}
+
+ void updatetrafficweights(string road1, string road2, int newcost) {
+        node *road1node = addnode(road1);
+        edge *curr = road1node->head;
+        while (curr != NULL) {
+            if (curr->u == road2) {
+                curr->weight_cost = newcost;
+                return;
+            }
+            curr = curr->next;
         }
     }
+
+
 };
 
 class minheap {
@@ -581,8 +690,6 @@ public:
 };
 
 
-// Existing classes from previous implementation remain the same...
-
 class CongestionMonitor {
 private:
     // Custom hash table-like structure for vehicle counts
@@ -814,6 +921,8 @@ void displayCongestionReport() {
     }
 };
 
+
+
 int main() {
     roadmap roadNetwork;
     vehiclelist vehicleList;
@@ -826,36 +935,40 @@ int main() {
     vehicleList.loadvehiclefromcsv("vehicles.csv");
     emergencyVehicles.loademergencyvehicleformcsv("emergency_vehicles.csv");
   signalList.readtrafficgreentimefromcsv("traffic_signals.csv");
-    cout << "Road Network:\n";
-    roadNetwork.displayroadnetwork();
-    cout << "\nVehicles:\n";
-    vehicleList.displayvehicle();
-    cout << "\nTraffic Signal Status:\n";
-    signalList.displaytrafficsignalstatus();
-    dijkstra("A",roadNetwork,"D");
+    // cout << "Road Network:\n";
+    // roadNetwork.displayroadnetwork();
+    // cout << "\nVehicles:\n";
+    // vehicleList.displayvehicle();
+    // cout << "\nTraffic Signal Status:\n";
+    // signalList.displaytrafficsignalstatus();
+    // dijkstra("A",roadNetwork,"D");
     // Create traffic signal manager
     TrafficSignalManager trafficManager(roadNetwork);
     trafficManager.loadTrafficSignals("traffic_signals.csv");
 
     // Demonstrate traffic signal optimization
-    cout << "Initial Traffic Signals:" << endl;
-    trafficManager.displayTrafficSignals();
+    // cout << "Initial Traffic Signals:" << endl;
+    // trafficManager.displayTrafficSignals();
 
     // Optimize traffic signals based on vehicle density
-    trafficManager.optimizeTrafficSignals(vehicleList);
+    // trafficManager.optimizeTrafficSignals(vehicleList);
 
     // Handle emergency vehicles
-    trafficManager.handleEmergencyVehicles(emergencyVehicles);
+//     trafficManager.handleEmergencyVehicles(emergencyVehicles);
 
-    cout << "\nOptimized Traffic Signals:" << endl;
-    trafficManager.displayTrafficSignals();
-     // Create Congestion Monitor
-    CongestionMonitor congestionMonitor(roadNetwork);
-    congestionMonitor.updateVehicleCount(vehicleList);
-    congestionMonitor.displayCongestionReport();
-    congestionMonitor.rerouteCongestedRoads(vehicleList);
-    // Display updated vehicle list after rerouting
-    cout << "\nUpdated Vehicles after Rerouting:" << endl;
-    vehicleList.displayvehicle();
+//     cout << "\nOptimized Traffic Signals:" << endl;
+//     trafficManager.displayTrafficSignals();
+//      // Create Congestion Monitor
+//     CongestionMonitor congestionMonitor(roadNetwork);
+//    // Make sure this is called before displaying the report
+// congestionMonitor.updateVehicleCount(vehicleList);
+// congestionMonitor.displayCongestionReport();
+
+//     congestionMonitor.rerouteCongestedRoads(vehicleList);
+//     // Display updated vehicle list after rerouting
+//     cout << "\nUpdated Vehicles after Rerouting:" << endl;
+//     vehicleList.displayvehicle();
+//      roadNetwork.aStarSearch("A", "Z");
+
     return 0;
 }
