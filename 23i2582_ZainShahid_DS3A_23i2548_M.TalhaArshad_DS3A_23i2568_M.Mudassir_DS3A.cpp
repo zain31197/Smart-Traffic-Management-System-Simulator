@@ -270,13 +270,13 @@ void addRoadStatus(string road1, string road2, string status) {
     }
 
      void blockRoad(string road1, string road2) {
-     updatetrafficweights(road1, road2, INT_MAX);
-
+   
         string reasontoblockroad="";
         cout<<"---Enter the reason why you are blocking road---"<<endl;
         cin>>reasontoblockroad;
         addRoadStatus(road1,road2,reasontoblockroad);
         cout << "Roads between " << road1 << " and " << road2 << " have been blocked." << endl;
+         removeSpecificRoad(road1,road2);
     }
 
     void applyRoadClosures(string filename) {
@@ -298,10 +298,15 @@ void addRoadStatus(string road1, string road2, string status) {
             
             if (status == "Blocked") {
                 updateTrafficWeights(road1, road2, INT_MAX); // Block the road
+                removeSpecificRoad(road1,road2);
             } else if (status == "Under Repair") {
                 updateTrafficWeights(road1, road2, INT_MAX); // Delay the road
+                removeSpecificRoad(road1,road2);
             }
-             removeSpecificRoad(road1,road2);
+            else{
+                continue;
+            }
+            //  removeSpecificRoad(road1,road2);
         }
            
         file.close();
@@ -333,7 +338,7 @@ void addRoadStatus(string road1, string road2, string status) {
             }
             // Free the memory used by the edge
             delete currEdge;
-            cout << "Removed road " << road1 << " to " << road2 << endl;
+            // cout << "Removed road " << road1 << " to " << road2 << endl;
             return;
         }
         prevEdge = currEdge;
@@ -876,236 +881,211 @@ public:
 };
 
 
-class CongestionMonitor {
+
+struct KeyValuePair {
+    string key;
+    int value;
+    KeyValuePair* next;
+
+    KeyValuePair(string k = "", int v = 0)
+        : key(k), value(v), next(nullptr) {}
+};
+
+class Congestion {
 private:
-    // Custom hash table-like structure for vehicle counts
-    struct RoadSegment {
-        string road1;
-        string road2;
-        int vehicleCount;
-        int congestionLevel;
-        RoadSegment* next;
+    static const int TABLE_SIZE = 100;
 
-        RoadSegment(string start, string end) : 
-            road1(start), road2(end), vehicleCount(0), 
-            congestionLevel(0), next(NULL) {}
-    };
+    KeyValuePair* table[TABLE_SIZE];
 
-    RoadSegment* head;
-    roadmap& roadNetwork;
-
-    // Hash function to distribute road segments
-    int hash(string road1, string road2) {
-        int hash = 0;
-        for (char c : road1) hash += c;
-        for (char c : road2) hash += c;
-        return hash % 100;
-    }
-
-    // Find or create road segment entry
-    RoadSegment* findOrCreateRoadSegment(string road1, string road2) {
-        RoadSegment* curr = head;
-        while (curr != NULL) {
-            if ((curr->road1 == road1 && curr->road2 == road2) ||
-                (curr->road1 == road2 && curr->road2 == road1)) {
-                return curr;
-            }
-            curr = curr->next;
+    unsigned int hash(const string& key) {
+        unsigned int hashVal = 0;
+        for (char ch : key) {
+            hashVal = hashVal * 31 + ch;
         }
-
-        // Create new road segment if not found
-        RoadSegment* newSegment = new RoadSegment(road1, road2);
-        newSegment->next = head;
-        head = newSegment;
-        return newSegment;
+        return hashVal % TABLE_SIZE;
     }
 
 public:
-    CongestionMonitor(roadmap& network) : roadNetwork(network), head(NULL) {}
+    // Trim function without using <algorithm>
+    static string trim(const string& str) {
+        size_t start = 0, end = str.length() - 1;
 
-    // Update vehicle count for a road segment
-   void updateVehicleCount(vehiclelist& vehicles) {
-    // Reset counts first
-    RoadSegment* curr = head;
-    while (curr != NULL) {
-        curr->vehicleCount = 0;
-        curr->congestionLevel = 0;
-        curr = curr->next;
+        // Remove leading spaces
+        while (start < str.length() && (str[start] == ' ' || str[start] == '\t' || str[start] == '\n' || str[start] == '\r')) {
+            ++start;
+        }
+
+        // Remove trailing spaces
+        while (end > start && (str[end] == ' ' || str[end] == '\t' || str[end] == '\n' || str[end] == '\r')) {
+            --end;
+        }
+
+        return str.substr(start, end - start + 1);
     }
 
-    // Count vehicles on each road segment
-    vehicle* vehiclePtr = vehicles.head;
-    while (vehiclePtr != NULL) {
-        RoadSegment* segment = findOrCreateRoadSegment(
-            vehiclePtr->road1, 
-            vehiclePtr->road2
-        );
-        segment->vehicleCount++;
-        
-        // Simple congestion level calculation
-        int travelTime = roadNetwork.gettraveltime(
-            vehiclePtr->road1, 
-            vehiclePtr->road2
-        );
-        
-        // Congestion levels: 
-        // 0-2 vehicles: Low
-        // 3-5 vehicles: Medium
-        // 6+ vehicles: High
-        if (segment->vehicleCount <= 2) 
-            segment->congestionLevel = 1; // Low
-        else if (segment->vehicleCount <= 5) 
-            segment->congestionLevel = 2; // Medium
-        else 
-            segment->congestionLevel = 3; // High
-
-        vehiclePtr = vehiclePtr->next;
-    }
-}
-
-    // Reroute traffic from congested roads
-    string findAlternativeRoute(string start, string end) {
-    const int MAX_NODES = 100; // Adjust based on the size of the graph
-    bool visited[MAX_NODES] = {false}; // Track visited nodes
-    string nodeNames[MAX_NODES];       // Map indices to node names
-    int nodeCount = 0;                 // Total number of nodes
-
-    // Populate nodes and indices
-    node* nodes[MAX_NODES];
-    node* current = roadNetwork.head_n;  // Assuming roadNetwork has a head node
-    while (current != NULL && nodeCount < MAX_NODES) {
-        nodes[nodeCount] = current;
-        nodeNames[nodeCount] = current->name;
-        nodeCount++;
-        current = current->next;
-    }
-
-    // Find the start node's index
-    int startIndex = -1;
-    for (int i = 0; i < nodeCount; i++) {
-        if (nodeNames[i] == start) {
-            startIndex = i;
-            break;
+    Congestion() {
+        for (int i = 0; i < TABLE_SIZE; i++) {
+            table[i] = nullptr;
         }
     }
 
-    if (startIndex == -1) {
-        return ""; // Start node not found
+    void insert(const string& key, int value = 1) {
+        if (key.empty()) {
+            cerr << "Attempted to insert an empty key!" << endl;
+            return;
+        }
+
+        unsigned int index = hash(key);
+        // cout << "Inserting key: '" << key << "' at index: " << index << endl;
+
+        if (table[index] == nullptr) {
+            table[index] = new KeyValuePair(key, value);
+            // cout << "Inserted new key: '" << key << "' with value: " << value << endl;
+            return;
+        }
+
+        KeyValuePair* current = table[index];
+        while (current != nullptr) {
+            if (current->key == key) {
+                current->value += value;
+                // cout << "Updated key: '" << key << "' to value: " << current->value << endl;
+                return;
+            }
+            if (current->next == nullptr) break;
+            current = current->next;
+        }
+
+        // Ensure proper memory allocation and check before dereferencing
+        if (current == nullptr) {
+            cerr << "Error: Unable to insert key due to null pointer." << endl;
+            return;
+        }
+
+        current->next = new KeyValuePair(key, value);
+        // cout << "Appended key: '" << key << "' with value: " << value << endl;
     }
 
-    // Queue for BFS
-    struct QueueNode {
-        string nodeName;
-        int nodeIndex;
-    };
-
-    QueueNode queue[MAX_NODES];
-    int front = 0, rear = 0;
-
-    // Enqueue the start node
-    queue[rear++] = {start, startIndex};
-    visited[startIndex] = true;
-
-    // Perform BFS
-    while (front < rear) {
-        QueueNode currentNode = queue[front++];
-        node* currentGraphNode = nodes[currentNode.nodeIndex];
-        edge* connectedRoads = currentGraphNode->head;
-
-        // Explore connected roads
-        while (connectedRoads != NULL) {
-            string neighbor = connectedRoads->u;
-
-            // Find the neighbor index
-            int neighborIndex = -1;
-            for (int i = 0; i < nodeCount; i++) {
-                if (nodeNames[i] == neighbor) {
-                    neighborIndex = i;
-                    break;
+    void displayEntries() {
+        for (int i = 0; i < TABLE_SIZE; i++) {
+            KeyValuePair* current = table[i];
+            while (current != nullptr) {
+                if (!current->key.empty()) {
+                    cout << current->key << ", Vehicles: " 
+                         << current->value << endl;
                 }
-            }
-
-            if (neighborIndex == -1 || visited[neighborIndex]) {
-                connectedRoads = connectedRoads->next;
-                continue;
-            }
-
-            // Skip the original congested end node
-            if (neighbor != end) {
-                return neighbor; // Found a valid alternative route
-            }
-
-            // Mark as visited and enqueue
-            visited[neighborIndex] = true;
-            queue[rear++] = {neighbor, neighborIndex};
-
-            connectedRoads = connectedRoads->next;
-        }
-    }
-
-    return ""; // No alternative route found
-}
-void rerouteCongestedRoads(vehiclelist& vehicles) {
-    cout << "\n--- Congestion Rerouting Report ---" << endl;
-
-    RoadSegment* curr = head;
-    while (curr != NULL) {
-        if (curr->congestionLevel >= 3) {
-            cout << "High Congestion Detected: " 
-                 << curr->road1 << " - " << curr->road2 
-                 << " (Vehicles: " << curr->vehicleCount << ")" << endl;
-
-            // Find alternative routes using BFS
-            string altRoute1 = findAlternativeRoute(curr->road1, curr->road2);
-
-            if (!altRoute1.empty()) {
-                // Update vehicle routes
-                vehicle* vehiclePtr = vehicles.head;
-                while (vehiclePtr != NULL) {
-                    if ((vehiclePtr->road1 == curr->road1 && 
-                         vehiclePtr->road2 == curr->road2) ||
-                        (vehiclePtr->road1 == curr->road2 && 
-                         vehiclePtr->road2 == curr->road1)) {
-                        
-                        // Reroute logic
-                        vehiclePtr->road1 = curr->road1;
-                        vehiclePtr->road2 = altRoute1;
-
-                        cout << "  Rerouted Vehicle " 
-                             << vehiclePtr->vehicleid 
-                             << " via " << altRoute1 << endl;
-                    }
-                    vehiclePtr = vehiclePtr->next;
-                }
+                current = current->next;
             }
         }
-        curr = curr->next;
     }
-}
 
-
-    // Display congestion report
-void displayCongestionReport() {
-    cout << "---------- Congestion Status ------" << endl;
-    RoadSegment* curr = head;
-    while (curr != nullptr) {
-        cout << "-------------------------------------------------Segment: " << curr->road1 << " - " << curr->road2 
-             << ", Vehicles: " << curr->vehicleCount 
-             << ", Congestion Level: " << curr->congestionLevel << endl;
-        curr = curr->next;
+    // Retrieve the congestion data of a specific road
+    KeyValuePair* getRoadInfo(const string& road) {
+        unsigned int index = hash(road);
+        KeyValuePair* current = table[index];
+        while (current != nullptr) {
+            if (current->key == road) {
+                return current;
+            }
+            current = current->next;
+        }
+        return nullptr;
     }
-}
 
-
-    // Destructor to free memory
-    ~CongestionMonitor() {
-        while (head) {
-            RoadSegment* temp = head;
-            head = head->next;
-            delete temp;
+    ~Congestion() {
+        for (int i = 0; i < TABLE_SIZE; i++) {
+            KeyValuePair* current = table[i];
+            while (current != nullptr) {
+                KeyValuePair* temp = current;
+                current = current->next;
+                delete temp;
+            }
         }
     }
 };
+
+class CongestionMonitor {
+private:
+    Congestion roadCongestion;
+
+public:
+    void readTrafficData(const char* filename) {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "Error: Unable to open file '" << filename << "'." << endl;
+            return;
+        }
+
+        string line;
+        getline(file, line); // Skip header
+
+        while (getline(file, line)) {
+            istringstream ss(line);
+            string vehicleID, startIntersection, endIntersection;
+
+            getline(ss, vehicleID, ',');
+            getline(ss, startIntersection, ',');
+            getline(ss, endIntersection, ',');
+
+            // Trim spaces from intersections to avoid issues with leading/trailing spaces
+            startIntersection = Congestion::trim(startIntersection);
+            endIntersection = Congestion::trim(endIntersection);
+            // cout << "Start Intersection: '" << startIntersection << "' , End Intersection: '" << endIntersection << "'" << endl;
+
+            if (startIntersection.empty() || endIntersection.empty()) {
+                // cout << "Invalid intersection data. Skipping line: " << line << endl;
+                continue;
+            }
+
+            // Generate road key in the required format "start - end"
+            string roadKey = startIntersection + " - " + endIntersection;
+            // cout << "Generated RoadKey: '" << roadKey << "'" << endl;
+
+            // Insert road key into congestion table
+            roadCongestion.insert(roadKey);
+        }
+
+        file.close();
+    }
+
+    void rerouteTraffic(const string& congestedRoad) {
+        // Check congestion level
+        KeyValuePair* roadInfo = roadCongestion.getRoadInfo(congestedRoad);
+        if (roadInfo != nullptr && roadInfo->value >= 4) {
+            cout << "Rerouting traffic from " << congestedRoad << " due to congestion." << endl;
+
+            // Store the number of vehicles being rerouted
+            int vehiclesToReroute = roadInfo->value;
+
+            // Decrease vehicle count on the congested road by a professional rerouting amount (not zero)
+            roadCongestion.insert(congestedRoad, -vehiclesToReroute);
+
+            // Find an alternate road (dummy logic here)
+            string alternateRoad = findAlternateRoad(congestedRoad);
+
+            if (alternateRoad != "") {
+                cout << "Traffic rerouted to: " << alternateRoad << endl;
+                // Increase vehicle count on the alternate road
+                roadCongestion.insert(alternateRoad, vehiclesToReroute);
+            } else {
+                cout << "No alternate road found for rerouting." << endl;
+            }
+        }
+    }
+
+    string findAlternateRoad(const string& congestedRoad) {
+        // Here, you would implement logic to find an alternate route (for simplicity, just returning a dummy road)
+        return "Alternate Road";
+    }
+
+    void analyzeCongestion() {
+        cout << "\n----------------------------\n";
+        cout << "Road Congestion Analysis\n";
+        cout << "----------------------------\n";
+        roadCongestion.displayEntries();
+    }
+};
+
+
 
 
 
@@ -1167,122 +1147,410 @@ void displayCongestionReport() {
 // }
 
 
-void simulationDashboard(roadmap& roadNetwork, vehiclelist& vehicleList, trafficsignalgreenlist& signalList);
-void cityTrafficNetwork(roadmap& roadNetwork);
-void trafficSignalManagement(roadmap& roadNetwork, trafficsignalgreenlist& signalList);
-void congestionStatus(roadmap& roadNetwork, vehiclelist& vehicleList);
-void emergencyVehicleRouting(roadmap& roadNetwork, emergencyvehiclefromcsv& emergencyVehicles);
-void blockRoad(roadmap& roadNetwork);
-void simulateVehicleRouting(roadmap& roadNetwork);
+// void simulationDashboard(roadmap& roadNetwork, vehiclelist& vehicleList, trafficsignalgreenlist& signalList);
+// void cityTrafficNetwork(roadmap& roadNetwork);
+// void trafficSignalManagement(roadmap& roadNetwork, trafficsignalgreenlist& signalList);
+// void congestionStatus(roadmap& roadNetwork, vehiclelist& vehicleList);
+// void emergencyVehicleRouting(roadmap& roadNetwork, emergencyvehiclefromcsv& emergencyVehicles);
+// void blockRoad(roadmap& roadNetwork);
+// void simulateVehicleRouting(roadmap& roadNetwork);
+
+// int main() {
+//     roadmap roadNetwork;
+//     vehiclelist vehicleList;
+//     emergencyvehiclefromcsv emergencyVehicles;
+//     trafficsignalgreenlist signalList;
+
+//     // Load initial data
+//     roadNetwork.loadgraphfromcsv("road_network.csv");
+//     vehicleList.loadvehiclefromcsv("vehicles.csv");
+//     emergencyVehicles.loademergencyvehicleformcsv("emergency_vehicles.csv");
+//     signalList.readtrafficgreentimefromcsv("traffic_signals.csv");
+
+//     int choice;
+//     do {
+//         cout << "\n=== Smart Traffic Management System Simulator ===\n";
+//         cout << "1. Simulation Dashboard\n";
+//         cout << "2. City Traffic Network\n";
+//         cout << "3. Traffic Signal Management\n";
+//         cout << "4. Congestion Status\n";
+//         cout << "5. Emergency Vehicle Routing\n";
+//         cout << "6. Block a Road\n";
+//         cout << "7. Simulate Vehicle Routing (All Paths)\n";
+//         cout << "8. Exit Simulation\n";
+//         cout << "Enter your choice: ";
+//         cin >> choice;
+
+//         switch (choice) {
+//             case 1:
+//                 simulationDashboard(roadNetwork, vehicleList, signalList);
+//                 break;
+//             case 2:
+//                 cityTrafficNetwork(roadNetwork);
+//                 break;
+//             case 3:
+//                 trafficSignalManagement(roadNetwork, signalList);
+//                 break;
+//             case 4:
+//                 congestionStatus(roadNetwork, vehicleList);
+//                 break;
+//             case 5:
+//                 emergencyVehicleRouting(roadNetwork, emergencyVehicles);
+//                 break;
+//             case 6:
+//                 blockRoad(roadNetwork);
+//                 break;
+//             case 7:
+//                 simulateVehicleRouting(roadNetwork);
+//                 break;
+//             case 8:
+//                 cout << "Exiting simulation. Goodbye!\n";
+//                 break;
+//             default:
+//                 cout << "Invalid choice! Please try again.\n";
+//         }
+//     } while (choice != 8);
+
+//     return 0;
+// }
+
+// // Module implementations
+// void simulationDashboard(roadmap& roadNetwork, vehiclelist& vehicleList, trafficsignalgreenlist& signalList) {
+//     cout << "\n--- Simulation Dashboard ---\n";
+//     roadNetwork.displayroadnetwork();
+//     vehicleList.displayvehicle();
+//     signalList.displaytrafficsignalstatus();
+// }
+
+// void cityTrafficNetwork(roadmap& roadNetwork) {
+//     cout << "\n--- City Traffic Network ---\n";
+//     roadNetwork.displayroadnetwork();
+// }
+
+// void trafficSignalManagement(roadmap& roadNetwork, trafficsignalgreenlist& signalList) {
+//     cout << "\n--- Traffic Signal Management ---\n";
+//     signalList.displaytrafficsignalstatus();
+//     // Add features like optimization or updates here
+// }
+
+// void congestionStatus(roadmap& roadNetwork, vehiclelist& vehicleList) {
+//     cout << "\n--- Congestion Status ---\n";
+//     CongestionMonitor congestionMonitor(roadNetwork);
+//     congestionMonitor.updateVehicleCount(vehicleList);
+//     congestionMonitor.displayCongestionReport();
+// }
+
+// void emergencyVehicleRouting(roadmap& roadNetwork, emergencyvehiclefromcsv& emergencyVehicles) {
+//     cout << "\n--- Emergency Vehicle Routing ---\n";
+//     TrafficSignalManager trafficManager(roadNetwork);
+//     trafficManager.handleEmergencyVehicles(emergencyVehicles);
+// }
+
+// void blockRoad(roadmap& roadNetwork) {
+//     cout << "\n--- Block a Road ---\n";
+//     string start, end;
+//     cout << "Enter the road to block (start and end intersection): ";
+//     cin >> start >> end;
+//     roadNetwork.blockRoad(start, end);
+//     roadNetwork.displayRoadStatuses();
+// }
+
+// void simulateVehicleRouting(roadmap& roadNetwork) {
+//     cout << "\n--- Simulate Vehicle Routing (All Paths) ---\n";
+//     string start, end;
+//     cout << "Enter start intersection: ";
+//     cin >> start;
+//     cout << "Enter end intersection: ";
+//     cin >> end;
+//     roadNetwork.displayAllPaths(start,end);
+//     dijkstra(start, roadNetwork, end);
+//     roadNetwork.aStarSearch(start, end);
+// }
 
 int main() {
     roadmap roadNetwork;
     vehiclelist vehicleList;
     emergencyvehiclefromcsv emergencyVehicles;
     trafficsignalgreenlist signalList;
+    TrafficSignalManager trafficSignalManager(roadNetwork);
+    CongestionMonitor congestionMonitor;
 
     // Load initial data
     roadNetwork.loadgraphfromcsv("road_network.csv");
+    // roadNetwork.applyRoadClosures("road_closures.csv");
     vehicleList.loadvehiclefromcsv("vehicles.csv");
     emergencyVehicles.loademergencyvehicleformcsv("emergency_vehicles.csv");
     signalList.readtrafficgreentimefromcsv("traffic_signals.csv");
-
-    int choice;
+    trafficSignalManager.loadTrafficSignals("traffic_signals.csv");
+    congestionMonitor.readTrafficData("vehicles.csv");
+    int mainChoice, subChoice;
     do {
-        cout << "\n=== Smart Traffic Management System Simulator ===\n";
-        cout << "1. Simulation Dashboard\n";
-        cout << "2. City Traffic Network\n";
+        cout << "\n=== Smart Traffic Management System ===\n";
+        cout << "1. Road Network Operations\n";
+        cout << "2. Vehicle Management\n";
         cout << "3. Traffic Signal Management\n";
-        cout << "4. Congestion Status\n";
-        cout << "5. Emergency Vehicle Routing\n";
-        cout << "6. Block a Road\n";
-        cout << "7. Simulate Vehicle Routing (All Paths)\n";
-        cout << "8. Exit Simulation\n";
+        cout << "4.Display Block Road Status\n";
+        cout << "5. Emergency Vehicle Management\n";
+        cout << "6. Congestion Management\n";
+        cout << "7. Block a specific Road\n";
+        cout << "8. Simulate Vehicle Routing\n";
+        cout << "9. Exit\n";
         cout << "Enter your choice: ";
-        cin >> choice;
+        cin >> mainChoice;
 
-        switch (choice) {
-            case 1:
-                simulationDashboard(roadNetwork, vehicleList, signalList);
+        switch(mainChoice) {
+            case 1: // Road Network Operations
+                do {
+                    cout << "\n--- Road Network Operations ---\n";
+                    cout << "1. Display Road Network\n";
+                    cout << "2. Add Road\n";
+                    cout << "3. Update Traffic Weights\n";
+                    cout << "4. Block Road\n";
+                    cout << "5. Display Road Statuses\n";
+                    cout << "6. Find All Paths Between Intersections\n";
+                    cout << "7. Shortest Path (Dijkstra)\n";
+                    cout << "8. A* Search Path\n";
+                    cout << "9. Return to Main Menu\n";
+                    cout << "Enter your choice: ";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1: roadNetwork.displayroadnetwork(); break;
+                        case 2: {
+                            string road1, road2;
+                            int weight;
+                            cout << "Enter first intersection: ";
+                            cin >> road1;
+                            cout << "Enter second intersection: ";
+                            cin >> road2;
+                            cout << "Enter road weight: ";
+                            cin >> weight;
+                            roadNetwork.addedge(road1, road2, weight);
+                            break;
+                        }
+                        case 3: {
+                            string road1, road2;
+                            int newWeight;
+                            cout << "Enter first intersection: ";
+                            cin >> road1;
+                            cout << "Enter second intersection: ";
+                            cin >> road2;
+                            cout << "Enter new weight: ";
+                            cin >> newWeight;
+                            roadNetwork.updatetrafficweights(road1, road2, newWeight);
+                            break;
+                        }
+                        
+                        case 4: {
+                            string road1, road2;
+                            cout << "Enter first intersection: ";
+                            cin >> road1;
+                            cout << "Enter second intersection: ";
+                            cin >> road2;
+                            roadNetwork.blockRoad(road1, road2);
+                            break;
+                        }
+                        case 5:
+                         roadNetwork.applyRoadClosures("road_closures.csv");
+                         roadNetwork.displayRoadStatuses(); 
+                         break;
+                        case 6: {
+                            string start, end;
+                            cout << "Enter start intersection: ";
+                            cin >> start;
+                            cout << "Enter end intersection: ";
+                            cin >> end;
+                            roadNetwork.displayAllPaths(start, end);
+                            break;
+                        }
+                        case 7: {
+                            string start, end;
+                            cout << "Enter start intersection: ";
+                            cin >> start;
+                            cout << "Enter end intersection: ";
+                            cin >> end;
+                            dijkstra(start, roadNetwork, end);
+                            break;
+                        }
+                        case 8: {
+                            string start, end;
+                            cout << "Enter start intersection: ";
+                            cin >> start;
+                            cout << "Enter end intersection: ";
+                            cin >> end;
+                            roadNetwork.aStarSearch(start, end);
+                            break;
+                        }
+                    }
+                } while (subChoice != 9);
                 break;
-            case 2:
-                cityTrafficNetwork(roadNetwork);
+
+            case 2: // Vehicle Management
+                do {
+                    cout << "\n--- Vehicle Management ---\n";
+                    cout << "1. Display Vehicles\n";
+                    cout << "2. Add Vehicle\n";
+                    cout << "3. Load Vehicles from CSV\n";
+                    cout << "4. Return to Main Menu\n";
+                    cout << "Enter your choice: ";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1: vehicleList.displayvehicle(); break;
+                        case 2: {
+                            string id, road1, road2;
+                            cout << "Enter Vehicle ID: ";
+                            cin >> id;
+                            cout << "Enter Start Road: ";
+                            cin >> road1;
+                            cout << "Enter End Road: ";
+                            cin >> road2;
+                            vehicleList.addvehicle(id, road1, road2);
+                            break;
+                        }
+                        case 3: vehicleList.loadvehiclefromcsv("vehicles.csv"); break;
+                    }
+                } while (subChoice != 4);
                 break;
-            case 3:
-                trafficSignalManagement(roadNetwork, signalList);
+
+            case 3: // Traffic Signal Management
+                do {
+                    cout << "\n--- Traffic Signal Management ---\n";
+                    cout << "1. Display Traffic Signals\n";
+                    cout << "2. Optimize Traffic Signals\n";
+                    cout << "3. Load Traffic Signals from CSV\n";
+                    cout << "4. Return to Main Menu\n";
+                    cout << "Enter your choice: ";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1: trafficSignalManager.displayTrafficSignals(); break;
+                        case 2: trafficSignalManager.optimizeTrafficSignals(vehicleList); break;
+                        case 3: trafficSignalManager.loadTrafficSignals("traffic_signals.csv"); break;
+                    }
+                } while (subChoice != 4);
                 break;
             case 4:
-                congestionStatus(roadNetwork, vehicleList);
+            {
+                   do {
+                    cout << "1. Display Block Road Status\n";
+                    cout << "2. to return main menu\n";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1:
+                         roadNetwork.applyRoadClosures("road_closures.csv");
+                         roadNetwork.displayRoadStatuses(); 
+                         break;
+                    }
+                } while (subChoice != 2);
                 break;
-            case 5:
-                emergencyVehicleRouting(roadNetwork, emergencyVehicles);
+
+            }
+            case 5: // Emergency Vehicle Management
+                do {
+                    cout << "\n--- Emergency Vehicle Management ---\n";
+                    cout << "1. Display Emergency Vehicles\n";
+                    cout << "2. Add Emergency Vehicle\n";
+                    cout << "3. Handle Emergency Vehicles\n";
+                    cout << "4. Handle Emergency Vehicles Routing\n";
+                    cout << "5. Return to Main Menu\n";
+                    cout << "Enter your choice: ";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1: emergencyVehicles.displayemergencyvehicle(); break;
+                        case 2: {
+                            string id, road1, road2, priority;
+                            cout << "Enter Vehicle ID: ";
+                            cin >> id;
+                            cout << "Enter Start Road: ";
+                            cin >> road1;
+                            cout << "Enter End Road: ";
+                            cin >> road2;
+                            cout << "Enter Priority (High/Medium/Low): ";
+                            cin >> priority;
+                            emergencyVehicles.addemergencyvehicle(id, road1, road2, priority);
+                            break;
+                        }
+                        case 3: trafficSignalManager.handleEmergencyVehicles(emergencyVehicles); break;
+                         case 4: {
+                           string road1,road2;
+                            cout<<"Enter the start and end intersection for emergency vehicle"<<endl;
+                            cin>>road1;
+                            cin>>road2;
+                            roadNetwork.aStarSearch(road1,road2);
+                            break;
+                        }
+                    }
+                } while (subChoice != 5);
                 break;
-            case 6:
-                blockRoad(roadNetwork);
+
+            case 6: // Congestion Management
+                do {
+                    cout << "\n--- Congestion Management ---\n";
+                    cout << "1. Display Congestion Report\n";
+                    cout << "2. Reroute Congested Roads\n";
+                    cout << "3. Return to Main Menu\n";
+                    cout << "Enter your choice: ";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1: congestionMonitor.analyzeCongestion(); break;
+                        case 2:
+                        string road1, road2, key;
+                        cout << "Enter Road1 to Road 2 where you want to reroute the traffic (format: B - D): " << endl;
+                        cin >> road1;  // Get input for road1
+                        cin.ignore();  // Ignore the space before the hyphen
+                        cin >> ws;  // Skip any whitespace characters (including spaces, tabs, and newlines)
+                        cin >> road2;  // Get input for road2
+                        key = road1 + " - " + road2;  // Concatenate road1 and road2 with space around the hyphen
+                         congestionMonitor.rerouteTraffic(key);
+                         break;
+                    }
+                } while (subChoice != 3);
                 break;
-            case 7:
-                simulateVehicleRouting(roadNetwork);
+
+                 case 7: // Congestion Management
+                do {
+                    cout << "1. Block a Road\n";
+                    cout << "2. Return to Main Menu\n";
+                    cout << "Enter your choice: ";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1: 
+                        string road1,road2;
+                        cout<<"Enter the road1 and road 2 name that will be blocked"<<endl;
+                        cin>>road1;
+                        cin>>road2;
+                        roadNetwork.blockRoad(road1,road2);
+                    }
+                } while (subChoice != 2);
                 break;
-            case 8:
-                cout << "Exiting simulation. Goodbye!\n";
+
+                case 8:
+            {
+                   do {
+                    cout << "1. Simulate the vehicle Routing\n";
+                    cout << "2. to return main menu\n";
+                    cin >> subChoice;
+
+                    switch(subChoice) {
+                        case 1:
+                          string road1,road2;
+                     cout<<"Enter the road1 and road 2 name that will be blocked"<<endl;
+                        cin>>road1;
+                        cin>>road2;
+                        roadNetwork.displayAllPaths(road1,road2);
+                         break;
+                    }
+                } while (subChoice != 2);
                 break;
-            default:
-                cout << "Invalid choice! Please try again.\n";
+            }
+                
         }
-    } while (choice != 8);
+    } while (mainChoice != 9);
 
     return 0;
-}
-
-// Module implementations
-void simulationDashboard(roadmap& roadNetwork, vehiclelist& vehicleList, trafficsignalgreenlist& signalList) {
-    cout << "\n--- Simulation Dashboard ---\n";
-    roadNetwork.displayroadnetwork();
-    vehicleList.displayvehicle();
-    signalList.displaytrafficsignalstatus();
-}
-
-void cityTrafficNetwork(roadmap& roadNetwork) {
-    cout << "\n--- City Traffic Network ---\n";
-    roadNetwork.displayroadnetwork();
-}
-
-void trafficSignalManagement(roadmap& roadNetwork, trafficsignalgreenlist& signalList) {
-    cout << "\n--- Traffic Signal Management ---\n";
-    signalList.displaytrafficsignalstatus();
-    // Add features like optimization or updates here
-}
-
-void congestionStatus(roadmap& roadNetwork, vehiclelist& vehicleList) {
-    cout << "\n--- Congestion Status ---\n";
-    CongestionMonitor congestionMonitor(roadNetwork);
-    congestionMonitor.updateVehicleCount(vehicleList);
-    congestionMonitor.displayCongestionReport();
-}
-
-void emergencyVehicleRouting(roadmap& roadNetwork, emergencyvehiclefromcsv& emergencyVehicles) {
-    cout << "\n--- Emergency Vehicle Routing ---\n";
-    TrafficSignalManager trafficManager(roadNetwork);
-    trafficManager.handleEmergencyVehicles(emergencyVehicles);
-}
-
-void blockRoad(roadmap& roadNetwork) {
-    cout << "\n--- Block a Road ---\n";
-    string start, end;
-    cout << "Enter the road to block (start and end intersection): ";
-    cin >> start >> end;
-    roadNetwork.blockRoad(start, end);
-    roadNetwork.displayRoadStatuses();
-}
-
-void simulateVehicleRouting(roadmap& roadNetwork) {
-    cout << "\n--- Simulate Vehicle Routing (All Paths) ---\n";
-    string start, end;
-    cout << "Enter start intersection: ";
-    cin >> start;
-    cout << "Enter end intersection: ";
-    cin >> end;
-    roadNetwork.displayAllPaths(start,end);
-    dijkstra(start, roadNetwork, end);
-    roadNetwork.aStarSearch(start, end);
 }
