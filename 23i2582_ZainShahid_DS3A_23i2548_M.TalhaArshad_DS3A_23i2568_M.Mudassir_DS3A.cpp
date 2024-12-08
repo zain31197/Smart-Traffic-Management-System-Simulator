@@ -389,12 +389,11 @@ void addRoadStatus(string road1, string road2, string status) {
 }
 
 void displayAllPaths(string source, string destination) {
-    // Arrays to store the paths and their weights
-    string path[100];  // Assuming a maximum of 100 roads in a path
+    string path[100];
     int pathWeights[100];
-    string allPaths[100][100];  // Store up to 100 paths
-    int allWeights[100];  // Store the total weight of each path
-    int pathCount = 0;  // To track the number of found paths
+    string allPaths[100][100];  
+    int allWeights[100];  
+    int pathCount = 0;  
 
     // Start DFS from the source node
     node* sourceNode = addnode(source);
@@ -698,7 +697,7 @@ class trafficsignalgreenlist
     }
 };
 class TrafficSignalManager {
-private:
+
     trafficsignalgreenlist signalList;
     roadmap& roadNetwork;  // Reference to the road network
 
@@ -749,7 +748,7 @@ private:
             return max;
         }
 
-        bool isEmpty() { return size == 0; }
+              bool isEmpty() { return size == 0; }
     };
 
     // Count vehicles on a specific road
@@ -826,6 +825,8 @@ public:
         signal = signal->next;
     }
 
+    
+
     cout << "\n--- Traffic Signal Adjustments ---" << endl;
     // Adjust green times based on vehicle density
     while (!priorityRoads.isEmpty()) {
@@ -866,6 +867,30 @@ public:
     void displayTrafficSignals() {
         signalList.displaytrafficsignalstatus();
     }
+
+void overrideSignalForRoad(string road, int overrideTime) {
+        traficsignal* curr = signalList.head;
+        while (curr != NULL) {
+            if (curr->road == road) {
+                int originalTime = curr->greentime;
+
+                curr->greentime = overrideTime;
+
+                cout << "\n--- Emergency Signal Override ---" << endl;
+                cout << "Traffic signal for road " << road 
+                     << " has been overridden for emergency use." << endl;
+                cout << "  Original Green Time: " << originalTime << " seconds" << endl;
+                cout << "  New Green Time: " << curr->greentime << " seconds" << endl;
+
+                return;  
+            }
+            curr = curr->next;
+        }
+
+        // If the road was not found in the signal list
+        cout << "Error: Road " << road << " not found in the traffic signal list." << endl;
+    }
+
 };
 
 
@@ -1281,7 +1306,8 @@ int main() {
                     cout << "2. Add Emergency Vehicle\n";
                     cout << "3. Handle Emergency Vehicles\n";
                     cout << "4. Handle Emergency Vehicles Routing\n";
-                    cout << "5. Return to Main Menu\n";
+                    cout<<  "5. Emergency overirde signal for specific road"<<endl;
+                    cout << "6. Return to Main Menu\n";
                     cout << "Enter your choice: ";
                     cin >> subChoice;
 
@@ -1309,8 +1335,20 @@ int main() {
                             roadNetwork.aStarSearch(road1,road2);
                             break;
                         }
+
+                        case 5: {
+                           string road1;
+                           int overridetime;
+                            cout<<"Enter the road where you want to override the signal for emergency purpose"<<endl;
+                            cin>>road1;
+                            cout<<"Enter the override time emergency purpose"<<endl;
+                            cin>>overridetime;
+                            
+                            trafficSignalManager.overrideSignalForRoad(road1,overridetime);
+                            break;
+                        }
                     }
-                } while (subChoice != 5);
+                } while (subChoice != 6);
                 break;
 
             case 6: // Congestion Management

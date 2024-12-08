@@ -2,7 +2,6 @@ Intersection1,Intersection2,Status
 B,C,Blocked
 D,E,Clear
 C,D,Under Repair
-A,F,Blocked
 E,F,Clear
 F,G,Clear
 H,I,Blocked
