@@ -1,4 +1,3 @@
-# data-structures-project
 # Smart Traffic Management System Simulator
 # Project Description
 The Smart Traffic Management System Simulator is a console-based simulation designed to optimize urban traffic flow in a city using advanced data structures and algorithms. It replicates real-world traffic scenarios, including dynamic vehicle routing, traffic signal management, congestion monitoring, emergency handling, and road disruption simulations. The project focuses on real-time traffic control without predictive features.
